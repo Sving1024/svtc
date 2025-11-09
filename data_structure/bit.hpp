@@ -6,18 +6,18 @@ using namespace std;
 using ll = long long;
 using ull = unsigned long long;
 
-ull lowbit(ull x) { return x & -x; }
+size_t lowbit(size_t x) { return x & -x; }
 
-template <class T, ull N>
+template <class T, size_t N>
 struct bit {
     array<T, N> t;
-    void add(ull p, T val) {
+    void add(size_t p, T val) {
         for (; p < N; p += lowbit(p)) {
             t[p] += val;
         }
         return;
     }
-    T query(ull p) {
+    T query(size_t p) const {
         if (p < 0) {
             return 0;
         }
@@ -27,35 +27,35 @@ struct bit {
         }
         return ret;
     }
-    T query(ull l, ull r) { return query(r) - query(l - 1); }
+    T query(size_t l, size_t r) const { return query(r) - query(l - 1); }
 };
 
-template <class T, ull N>
+template <class T, size_t N>
 struct bit_with_coef {
   private:
-    void add(ull pos, ull val) {
+    void add(size_t pos, T val) {
         // 这个函数返回的是前缀和。
         // 并不是单点的值。
         b.add(pos, val);
         c.add(pos, val * sum_coef[pos - 1]);
         return;
     }
-    ll query(ull r) const { return sum_coef[r] * b.query(r) - c.query(r); }
+    ll query(size_t r) const { return sum_coef[r] * b.query(r) - c.query(r); }
 
   public:
     array<T, N> sum_coef;
     bit<T, N> b, c;
     void build(const vector<T> &vec) {
         copy(vec.begin(), vec.end(), sum_coef.begin());
-        for (ull i = 1; i < vec.size(); i++) {
+        for (size_t i = 1; i < vec.size(); i++) {
             sum_coef[i] += sum_coef[i - 1];
         }
         return;
     }
-    void add(ull l, ull r, ull val) {
+    void add(size_t l, size_t r, T val) {
         add(l, val);
         add(r + 1, -val);
         return;
     }
-    ll query(ull l, ull r) const { return query(r) - query(l - 1); }
+    ll query(size_t l, size_t r) const { return query(r) - query(l - 1); }
 };
