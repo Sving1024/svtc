@@ -2,11 +2,8 @@ using ll = long long;
 using ull = unsigned long long;
 
 namespace maths {
-    template <ull mod, class int_type = ll>
+    template <ull mod, class int_type = ll, class uint_type = ull>
     class modular {
-      private:
-        using uint_type = unsigned int_type;
-
       public:
         uint_type x;
 
@@ -29,7 +26,7 @@ namespace maths {
             norm();
             return;
         }
-        modular(uint_type _x) { x = _x % MOD; }
+        modular(uint_type _x) { x = _x % mod; }
         modular operator+(const modular &b) const {
             modular ret;
             ret.x = x + b.x;
@@ -42,7 +39,7 @@ namespace maths {
             ret.norm();
             return ret;
         }
-        modular operator-() {
+        modular operator-() const {
             modular ret;
             ret.x = mod - x;
             return ret;
