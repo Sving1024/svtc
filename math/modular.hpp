@@ -8,11 +8,7 @@ namespace maths {
         uint_type x;
 
       private:
-        void norm() {
-            if (x >= mod) {
-                x -= mod;
-            }
-        }
+        void norm() { x -= mod * (x >= mod); }
 
       public:
         modular() : x(0) {}
@@ -26,18 +22,20 @@ namespace maths {
             norm();
             return;
         }
-        modular(uint_type _x) { x = _x % mod; }
-        modular operator+(const modular &b) const {
+        friend modular operator+(const modular &lhs, const modular &rhs) {
             modular ret;
-            ret.x = x + b.x;
+            ret.x = lhs.x + rhs.x;
             ret.norm();
             return ret;
         }
-        modular operator-(const modular &b) const {
+        friend modular operator-(const modular &lhs, const modular &rhs) {
             modular ret;
-            ret.x = x + mod - b.x;
+            ret.x = lhs.x + mod - rhs.x;
             ret.norm();
             return ret;
+        }
+        friend modular operator*(const modular &lhs, const modular &rhs) {
+            return modular(lhs.x * rhs.x);
         }
         modular operator-() const {
             modular ret;
@@ -45,7 +43,6 @@ namespace maths {
             return ret;
         }
         modular operator-=(const modular &b) { return *this = *this - b; }
-        modular operator*(const modular &b) const { return modular(x * b.x); }
         modular operator+=(const modular &b) { return *this = *this + b; }
         modular operator*=(const modular &b) { return *this = *this * b; }
         bool operator==(const modular &b) const { return x == b.x; }
