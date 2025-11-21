@@ -1,7 +1,7 @@
 #include <functional>
 #include <vector>
 
-namespace ds {
+namespace data_structure {
     template <class info_t, class tag_t,
               class merge_info_op = std::plus<info_t>,
               class apply_op = std::multiplies<void>,
