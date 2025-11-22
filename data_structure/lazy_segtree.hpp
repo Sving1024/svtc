@@ -17,7 +17,7 @@ namespace data_structure {
 
         struct node {
             info_t info;
-            tag_t tg;
+            tag_t tag;
 
             size_t l, r;
 
@@ -35,14 +35,14 @@ namespace data_structure {
         }
 
         void apply_to_node(size_t p, const tag_t &tag) {
-            t[p].tg = merge_tag(t[p].tg, tag);
+            t[p].tag = merge_tag(tag, t[p].tag);
             t[p].info = apply_to_info(t[p].info, tag);
         }
 
         void spread(size_t p) {
-            apply_to_node(lc(p), t[p].tg);
-            apply_to_node(rc(p), t[p].tg);
-            t[p].tg = id_tag;
+            apply_to_node(lc(p), t[p].tag);
+            apply_to_node(rc(p), t[p].tag);
+            t[p].tag = id_tag;
             return;
         }
 
@@ -51,7 +51,7 @@ namespace data_structure {
             t[p].l = l;
             t[p].r = r;
             t[p].info = id_info;
-            t[p].tg = id_tag;
+            t[p].tag = id_tag;
             if (l + 1 == r) {
                 t[p].info = init_val[l];
                 return;
@@ -145,4 +145,4 @@ namespace data_structure {
             return;
         }
     };
-} // namespace ds
+} // namespace data_structure

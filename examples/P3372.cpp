@@ -41,7 +41,7 @@ namespace ds {
         }
 
         void apply_to_node(size_t p, const tag_t &tag) {
-            t[p].tg = merge_tag(t[p].tg, tag);
+            t[p].tg = merge_tag(tag, t[p].tg);
             t[p].info = apply_to_info(t[p].info, tag);
         }
 
