@@ -1,7 +1,7 @@
 #include <queue>
 #include <vector>
 #include "data_structure/adj_table.hpp"
-#include "math/numbers.cpp"
+#include "math/numbers.hpp"
 
 namespace graph {
     template <typename result_type>

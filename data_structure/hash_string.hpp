@@ -1,4 +1,4 @@
-#include "../math/modular.hpp"
+#include "math/modular.hpp"
 
 namespace string_utils {
     template <ull base, ull mod>
