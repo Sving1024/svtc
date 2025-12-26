@@ -16,7 +16,7 @@ namespace ds {
         vector<size_t> head;
         vector<node> nd;
 
-        adj_table(size_t n) : head(n, static_cast<size_t>(-1)), nd() {}
+        adj_table(size_t n) : head(n, npos), nd() {}
 
         adj_table() {}
 
@@ -27,4 +27,7 @@ namespace ds {
 
         size_t next_pos(size_t i) { return nd[i].nxt; }
     };
+
+    template <class T>
+    const size_t adj_table<T>::npos;
 } // namespace ds
