@@ -36,7 +36,7 @@ namespace data_structure {
 
         void apply_to_node(size_t p, const tag_t &tag) {
             t[p].tag = merge_tag(tag, t[p].tag);
-            t[p].info = apply_to_info(t[p].info, tag);
+            t[p].info = apply_to_info(tag, t[p].info);
         }
 
         void spread(size_t p) {
@@ -81,6 +81,12 @@ namespace data_structure {
         }
 
         template <class iter>
+        void assign(iter iter_begin, iter iter_end) {
+            size_t n = std::distance(iter_begin, iter_end);
+            build(0, n, std::vector<info_t>(iter_begin, iter_end));
+        }
+
+        template <class iter>
         lazy_segtree(iter iter_begin, iter iter_end,
                      const merge_info_op &_merge_info = merge_info_op(),
                      const apply_op &_apply = apply_op(),
@@ -90,8 +96,7 @@ namespace data_structure {
             : merge_info(_merge_info), apply_to_info(_apply),
               merge_tag(_merge_tag), id_info(_info_id), id_tag(_tag_id),
               t(std::distance(iter_begin, iter_end) * 4) {
-            size_t n = std::distance(iter_begin, iter_end);
-            build(0, n, std::vector<info_t>(iter_begin, iter_end));
+            assign(iter_begin, iter_end);
         }
 
         void apply(size_t l, size_t r, const tag_t &tag, size_t p = 1) {

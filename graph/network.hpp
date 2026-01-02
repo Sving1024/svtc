@@ -80,7 +80,7 @@ namespace graph {
         result_type dinic() {
             result_type r = 0;
             while (bfs()) {
-                r += dfs(s, numbers::inf<uint>());
+                r += dfs(s, numbers::inf<result_type>());
             }
             return r;
         }
