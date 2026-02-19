@@ -70,6 +70,10 @@ namespace graph {
                 max_flow -= r;
 
                 if (!max_flow) {
+                    /**
+                     * 由于 c++ 会先进行 cur[p] = g.next_pos(cur[p]) 这个语句再判断合法与否，
+                     * 因此如果 max_flow 恰好减到 0 实际上这里并没有流满。
+                     */
                     break;
                 }
             }

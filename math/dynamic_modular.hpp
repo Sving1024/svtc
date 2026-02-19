@@ -41,17 +41,14 @@ namespace maths {
         }
         template <class T>
         dynamic_modular operator+=(const T &b) {
-            assert(mod == b.mod);
             return *this = *this + b;
         }
         template <class T>
         dynamic_modular operator*=(const T &b) {
-            assert(mod == b.mod);
             return *this = *this * b;
         }
         template <class T>
         dynamic_modular operator-=(const T &b) {
-            assert(mod == b.mod);
             return *this = *this - b;
         }
         void setmod(ull _mod) {

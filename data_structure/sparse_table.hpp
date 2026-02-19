@@ -14,8 +14,18 @@ namespace data_structure {
             cmp compare;
             min_element() : compare() {}
             min_element(cmp c) : compare(c) {}
-            T operator(const T &a, const T &b) const {
+            T operator()(const T &a, const T &b) const {
                 return std::min(a, b, compare);
+            }
+        };
+
+        template <class T, class cmp = less<T>>
+        struct max_element {
+            cmp compare;
+            max_element() : compare() {}
+            max_element(cmp c) : compare(c) {}
+            T operator()(const T &a, const T &b) const {
+                return std::max(a, b, compare);
             }
         };
     } // namespace functor
