@@ -1,0 +1,3743 @@
+%!PS-Adobe-3.0
+%%Title: discretization.hpp, kmp.hpp, adj_table.hpp, bit.hpp, dsu.hpp, hash_string.hpp, lazy_segtree.hpp, sparse_table.hpp, sum_prefix.hpp, P3372.cpp
+%%For: 
+%%Creator: a2ps version 4.15.8
+%%CreationDate: Fri Apr 10 00:37:08 2026
+%%BoundingBox: 24 24 571 818
+%%DocumentData: Clean7Bit
+%%Orientation: Landscape
+%%Pages: 20
+%%PageOrder: Ascend
+%%DocumentMedia: A4 595 842 0 () ()
+%%DocumentNeededResources: font Courier
+%%+ font Courier-Bold
+%%+ font Courier-BoldOblique
+%%+ font Courier-Oblique
+%%+ font Helvetica
+%%+ font Helvetica-Bold
+%%+ font Symbol
+%%+ font Times-Bold
+%%+ font Times-Roman
+%%DocumentProcessColors: Black 
+%%DocumentSuppliedResources: procset a2ps-a2ps-hdr
+%%+ procset a2ps-black+white-Prolog
+%%+ encoding ISO-8859-1Encoding
+%%EndComments
+/a2psdict 200 dict def
+a2psdict begin
+%%BeginProlog
+%%Copyright: (c) 1988-2017 Free Software Foundation, Inc.
+% Check PostScript language level.
+/languagelevel where {
+  pop /gs_languagelevel languagelevel def
+} {
+  /gs_languagelevel 1 def
+} ifelse
+
+% EPSF import as in the Red Book
+/BeginInclude {
+  /b4_Inc_state save def    		% Save state for cleanup
+  /dict_count countdictstack def	% Count objects on dict stack
+  /op_count count 1 sub def		% Count objects on operand stack 
+  userdict begin
+    0 setgray 0 setlinecap
+    1 setlinewidth 0 setlinejoin
+    10 setmiterlimit [ ] 0 setdash newpath
+    gs_languagelevel 1 ne {
+      false setstrokeadjust false setoverprint 
+    } if
+} bind def
+
+/EndInclude {
+  count op_count sub { pos } repeat	% Clean up stacks
+  countdictstack dict_count sub { end } repeat
+  b4_Inc_state restore
+} bind def
+
+/BeginEPSF {
+  BeginInclude
+  /showpage { } def
+} bind def
+
+/EndEPSF {
+  EndInclude
+} bind def
+
+% Page prefeed
+/page_prefeed {         % bool -> -
+  statusdict /prefeed known {
+    statusdict exch /prefeed exch put
+  } {
+    pop
+  } ifelse
+} bind def
+
+/deffont {
+  findfont exch scalefont def
+} bind def
+
+/reencode_font {
+  findfont reencode 2 copy definefont pop def
+} bind def
+
+% Function c-show (str => -)
+% centers text only according to x axis.
+/c-show { 
+  dup stringwidth pop
+  2 div neg 0 rmoveto
+  show
+} bind def
+
+% Function l-show (str => -)
+% prints texts so that it ends at currentpoint
+/l-show {
+  dup stringwidth pop neg 
+  0 
+  rmoveto show
+} bind def
+
+% center-fit show (str w => -)
+% show centered, and scale currentfont so that the width is less than w
+/cfshow {
+  exch dup stringwidth pop
+  % If the title is too big, try to make it smaller
+  3 2 roll 2 copy
+  gt
+  { % if, i.e. too big
+    exch div
+    currentfont exch scalefont setfont
+  } { % ifelse
+    pop pop 
+  }
+  ifelse
+  c-show			% center title
+} bind def
+
+% Return the y size of the current font
+% - => fontsize
+/currentfontsize {
+  currentfont /FontType get 0 eq {
+    currentfont /FontMatrix get 3 get
+  }{
+    currentfont /FontMatrix get 3 get 1000 mul
+  } ifelse
+} bind def
+
+% reencode the font
+% <encoding-vector> <fontdict> -> <newfontdict>
+/reencode { %def
+  dup length 5 add dict begin
+    { %forall
+      % <vector> <key> <val>
+      1 index /FID ne 
+      { def }{ pop pop } ifelse
+    } forall
+    /Encoding exch def % -
+
+    % Use the font's bounding box to determine the ascent, descent,
+    % and overall height; don't forget that these values have to be
+    % transformed using the font's matrix.
+    % We use `load' because sometimes BBox is executable, sometimes not.
+    % Since we need 4 numbers an not an array avoid BBox from being executed
+    /FontBBox load aload pop
+    FontMatrix transform /Ascent exch def pop
+    FontMatrix transform /Descent exch def pop
+    /FontHeight Ascent Descent sub def
+
+    % Get the underline position and thickness if they're defined.
+    % Use 1 if they are not defined.
+    currentdict /FontInfo 2 copy known
+    { get
+      /UnderlinePosition 2 copy % <FontInfo> /UP <FontInfo> /UP
+      2 copy known
+      { get }{ pop pop 1 } ifelse
+      0 exch FontMatrix transform exch pop
+      def % <FontInfo>
+
+      /UnderlineThickness 2 copy % <FontInfo> /UT <FontInfo> /UT
+      2 copy known
+      { get }{ pop pop 1 } ifelse
+      0 exch FontMatrix transform exch pop
+      def % <FontInfo>
+      pop % -
+    }{ pop pop
+    } ifelse
+
+    currentdict
+  end 
+} bind def
+
+% composite fonts for ASCII-EUC mixed strings
+% Version 1.2 1/31/1990
+% Original Ken'ichi HANDA (handa@etl.go.jp)
+% Modified Norio Katayama (katayama@rd.nacsis.ac.jp),1998
+% Extend & Fix Koji Nakamaru (maru@on.cs.keio.ac.jp), 1999
+% Anyone can freely copy, modify, distribute this program.
+
+/copyfont {	% font-dic extra-entry-count  copyfont  font-dic
+	1 index maxlength add dict begin
+	{	1 index /FID ne 2 index /UniqueID ne and
+		{def} {pop pop} ifelse
+	} forall
+	currentdict
+	end
+} bind def
+
+/compositefont { % ASCIIFontName EUCFontName RomanScale RomanOffset Rot(T/F) compositefont font
+    /RomanRotation exch def
+    /RomanOffset exch def
+    /RomanScale exch def
+    userdict /fixeucfont_dict known not {
+	userdict begin
+	    /fixeucfont_dict 2 dict begin
+		/UpperByteEncoding [
+		    16#00 1 16#20 { pop 0 } for
+		    16#21 1 16#28 { 16#20 sub } for
+		    16#29 1 16#2F { pop 0 } for
+		    16#30 1 16#74 { 16#27 sub } for
+		    16#75 1 16#FF { pop 0 } for
+		] def
+	        /LowerByteEncoding [
+		    16#00 1 16#A0 { pop /.notdef } for
+		    16#A1 1 16#FE { 16#80 sub 16 2 string cvrs
+				    (cXX) dup 1 4 -1 roll
+				    putinterval cvn } for
+		    /.notdef
+		] def
+		currentdict
+	    end def
+	end
+    } if
+    findfont dup /FontType get 0 eq {
+	14 dict begin
+	    %
+	    % 7+8 bit EUC font
+	    %
+	    12 dict begin
+		/EUCFont exch def
+		/FontInfo (7+8 bit EUC font) readonly def
+		/PaintType 0 def
+		/FontType 0 def
+		/FontMatrix matrix def
+		% /FontName
+		/Encoding fixeucfont_dict /UpperByteEncoding get def
+		/FMapType 2 def
+		EUCFont /WMode known
+		{ EUCFont /WMode get /WMode exch def }
+		{ /WMode 0 def } ifelse
+		/FDepVector [
+		    EUCFont /FDepVector get 0 get
+		    [ 16#21 1 16#28 {} for 16#30 1 16#74 {} for ]
+		    {
+			13 dict begin
+			    /EUCFont EUCFont def
+			    /UpperByte exch 16#80 add def	
+			    % /FontName
+			    /FontInfo (EUC lower byte font) readonly def
+			    /PaintType 0 def
+			    /FontType 3 def
+			    /FontMatrix matrix def
+			    /FontBBox {0 0 0 0} def
+			    /Encoding
+				fixeucfont_dict /LowerByteEncoding get def
+			    % /UniqueID
+			    % /WMode
+			    /BuildChar {
+				gsave
+				exch dup /EUCFont get setfont
+				/UpperByte get
+				2 string
+				dup 0 4 -1 roll put
+				dup 1 4 -1 roll put
+				dup stringwidth setcharwidth
+				0 0 moveto show
+				grestore
+			    } bind def
+			    currentdict
+			end
+			/lowerbytefont exch definefont
+		    } forall
+		] def
+		currentdict
+	    end
+	    /eucfont exch definefont
+	    exch
+	    findfont 1 copyfont dup begin
+		RomanRotation {
+			/FontMatrix FontMatrix
+			[ 0 RomanScale neg RomanScale 0 RomanOffset neg 0 ]
+			matrix concatmatrix def
+		}{
+			/FontMatrix FontMatrix
+			[ RomanScale 0 0 RomanScale 0 RomanOffset ] matrix concatmatrix
+			def
+			/CDevProc
+			    {pop pop pop pop 0 exch -1000 exch 2 div 880} def
+		} ifelse
+	    end
+	    /asciifont exch definefont
+	    exch
+	    /FDepVector [ 4 2 roll ] def
+	    /FontType 0 def
+	    /WMode 0 def
+	    /FMapType 4 def
+	    /FontMatrix matrix def
+	    /Encoding [0 1] def
+	    /FontBBox {0 0 0 0} def
+%	    /FontHeight 1.0 def % XXXX
+	    /FontHeight RomanScale 1.0 ge { RomanScale }{ 1.0 } ifelse def
+	    /Descent -0.3 def   % XXXX
+	    currentdict
+	end
+	/tmpfont exch definefont
+	pop
+	/tmpfont findfont
+    }{
+	pop findfont 0 copyfont
+    } ifelse
+} def	
+
+/slantfont {	% FontName slant-degree  slantfont  font'
+    exch findfont 1 copyfont begin
+    [ 1 0 4 -1 roll 1 0 0 ] FontMatrix exch matrix concatmatrix
+    /FontMatrix exch def
+    currentdict
+    end
+} def
+
+% Function print line number (<string> # -)
+/# {
+  gsave
+    sx cw mul neg 2 div 0 rmoveto
+    f# setfont
+    c-show
+  grestore
+} bind def
+
+% -------- Some routines to enlight plain b/w printings ---------
+
+% Underline
+% width --
+/dounderline {
+  currentpoint
+  gsave
+    moveto
+    0 currentfont /Descent get currentfontsize mul rmoveto
+    0 rlineto
+    stroke
+  grestore
+} bind def
+
+% Underline a string
+% string --
+/dounderlinestring {
+  stringwidth pop
+  dounderline
+} bind def
+
+/UL {
+  /ul exch store
+} bind def
+
+% Draw a box of WIDTH wrt current font
+% width --
+/dobox {
+  currentpoint
+  gsave
+    newpath
+    moveto
+    0 currentfont /Descent get currentfontsize mul rmoveto
+    dup 0 rlineto
+    0 currentfont /FontHeight get currentfontsize mul rlineto
+    neg 0 rlineto
+    closepath
+    stroke
+  grestore
+} bind def
+
+/BX {
+  /bx exch store
+} bind def
+
+% Box a string
+% string --
+/doboxstring {
+  stringwidth pop
+  dobox
+} bind def
+
+%
+% ------------- Color routines ---------------
+%
+/FG /setrgbcolor load def
+
+% Draw the background
+% width --
+/dobackground {
+  currentpoint
+  gsave
+    newpath
+    moveto
+    0 currentfont /Descent get currentfontsize mul rmoveto
+    dup 0 rlineto
+    0 currentfont /FontHeight get currentfontsize mul rlineto
+    neg 0 rlineto
+    closepath
+    bgcolor aload pop setrgbcolor
+    fill
+  grestore
+} bind def
+
+% Draw bg for a string
+% string --
+/dobackgroundstring {
+  stringwidth pop
+  dobackground
+} bind def
+
+
+/BG {
+  dup /bg exch store
+  { mark 4 1 roll ] /bgcolor exch store } if
+} bind def
+
+
+/Show {
+  bg { dup dobackgroundstring } if
+  ul { dup dounderlinestring } if
+  bx { dup doboxstring } if
+  show
+} bind def
+
+% Function T(ab), jumps to the n-th tabulation in the current line
+/T {
+  cw mul x0 add
+  bg { dup currentpoint pop sub dobackground } if
+  ul { dup currentpoint pop sub dounderline } if
+  bx { dup currentpoint pop sub dobox } if
+  y0 moveto
+} bind def
+
+% Function n: move to the next line
+/n {
+  /y0 y0 bfs sub store
+  x0 y0 moveto
+} bind def
+
+% Function N: show and move to the next line
+/N {
+  Show
+  /y0 y0 bfs sub store
+  x0 y0 moveto
+} bind def
+
+/S {
+  Show
+} bind def
+
+%%BeginResource: procset a2ps-a2ps-hdr 2.0 2
+%%Copyright: (c) 1988, 89, 90, 91, 92, 93 Miguel Santana
+%%Copyright: (c) 1995, 96, 97, 98 Akim Demaille, Miguel Santana
+% Function title: prints page header.
+% <ct> <rt> <lt> are passed as argument
+/title { 
+  % 1. Draw the background
+  x v get y v get moveto
+  gsave
+    0 th 2 div neg rmoveto 
+    th setlinewidth
+    0.95 setgray
+    pw 0 rlineto stroke
+  grestore
+  % 2. Border it
+  gsave
+    0.7 setlinewidth
+    pw 0 rlineto
+    0 th neg rlineto
+    pw neg 0 rlineto
+    closepath stroke
+  grestore
+  % stk: ct rt lt
+  x v get y v get th sub 1 add moveto
+%%IncludeResource: font Helvetica
+  fHelvetica fnfs 0.8 mul scalefont setfont
+  % 3. The left title
+  gsave
+    dup stringwidth pop fnfs 0.8 mul add exch % leave space took on stack
+    fnfs 0.8 mul hm rmoveto
+    show			% left title
+  grestore
+  exch
+  % stk: ct ltw rt
+  % 4. the right title
+  gsave
+    dup stringwidth pop fnfs 0.8 mul add exch % leave space took on stack
+    dup
+    pw exch stringwidth pop fnfs 0.8 mul add sub
+    hm
+    rmoveto
+    show			% right title
+  grestore
+  % stk: ct ltw rtw
+  % 5. the center title
+  gsave
+    pw 3 1 roll
+    % stk: ct pw ltw rtw
+    3 copy 
+    % Move to the center of the left room
+    sub add 2 div hm rmoveto
+    % What is the available space in here?
+    add sub fnfs 0.8 mul sub fnfs 0.8 mul sub
+    % stk: ct space_left
+%%IncludeResource: font Helvetica-Bold
+  fHelvetica-Bold fnfs scalefont setfont
+    cfshow
+  grestore
+} bind def
+
+% Function border: prints virtual page border
+/border { %def
+  gsave				% print four sides
+    0 setgray
+    x v get y v get moveto
+    0.7 setlinewidth		% of the square
+    pw 0 rlineto
+    0 ph neg rlineto
+    pw neg 0 rlineto
+    closepath stroke
+  grestore
+} bind def
+
+% Function water: prints a water mark in background
+/water { %def
+  gsave
+    scx scy moveto rotate
+%%IncludeResource: font Times-Bold
+  fTimes-Bold 100 scalefont setfont
+    .97 setgray
+    dup stringwidth pop 2 div neg -50 rmoveto
+    show
+  grestore
+} bind def
+
+% Function rhead: prints the right header
+/rhead {  %def
+  lx ly moveto
+  fHelvetica fnfs 0.8 mul scalefont setfont
+  l-show
+} bind def
+
+% Function footer (cf rf lf -> -)
+/footer {
+  fHelvetica fnfs 0.8 mul scalefont setfont
+  dx dy moveto
+  show
+
+  snx sny moveto
+  l-show
+  
+  fnx fny moveto
+  c-show
+} bind def
+%%EndResource
+%%BeginResource: procset a2ps-black+white-Prolog 2.0 1
+
+% Function T(ab), jumps to the n-th tabulation in the current line
+/T { 
+  cw mul x0 add y0 moveto
+} bind def
+
+% Function n: move to the next line
+/n { %def
+  /y0 y0 bfs sub store
+  x0 y0 moveto
+} bind def
+
+% Function N: show and move to the next line
+/N {
+  Show
+  /y0 y0 bfs sub store
+  x0 y0 moveto
+}  bind def
+
+/S {
+  Show
+} bind def
+
+/p {
+  false UL
+  false BX
+  fCourier bfs scalefont setfont
+  Show
+} bind def
+
+/sy {
+  false UL
+  false BX
+  fSymbol bfs scalefont setfont
+  Show
+} bind def
+
+/k {
+  false UL
+  false BX
+  fCourier-Oblique bfs scalefont setfont
+  Show
+} bind def
+
+/K {
+  false UL
+  false BX
+  fCourier-Bold bfs scalefont setfont
+  Show
+} bind def
+
+/c {
+  false UL
+  false BX
+  fCourier-Oblique bfs scalefont setfont
+  Show
+} bind def
+
+/C {
+  false UL
+  false BX
+  fCourier-BoldOblique bfs scalefont setfont
+  Show 
+} bind def
+
+/l {
+  false UL
+  false BX
+  fHelvetica bfs scalefont setfont
+  Show
+} bind def
+
+/L {
+  false UL
+  false BX
+  fHelvetica-Bold bfs scalefont setfont
+  Show 
+} bind def
+
+/str{
+  false UL
+  false BX
+  fTimes-Roman bfs scalefont setfont
+  Show
+} bind def
+
+/e{
+  false UL
+  true BX
+  fHelvetica-Bold bfs scalefont setfont
+  Show
+} bind def
+
+%%EndResource
+%%EndProlog
+%%BeginSetup
+%%IncludeResource: font Courier
+%%IncludeResource: font Courier-Oblique
+%%IncludeResource: font Courier-Bold
+%%IncludeResource: font Times-Roman
+%%IncludeResource: font Symbol
+%%IncludeResource: font Courier-BoldOblique
+%%BeginResource: encoding ISO-8859-1Encoding
+/ISO-8859-1Encoding [
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/space /exclam /quotedbl /numbersign /dollar /percent /ampersand /quoteright 
+/parenleft /parenright /asterisk /plus /comma /minus /period /slash 
+/zero /one /two /three /four /five /six /seven 
+/eight /nine /colon /semicolon /less /equal /greater /question 
+/at /A /B /C /D /E /F /G 
+/H /I /J /K /L /M /N /O 
+/P /Q /R /S /T /U /V /W 
+/X /Y /Z /bracketleft /backslash /bracketright /asciicircum /underscore 
+/quoteleft /a /b /c /d /e /f /g 
+/h /i /j /k /l /m /n /o 
+/p /q /r /s /t /u /v /w 
+/x /y /z /braceleft /bar /braceright /asciitilde /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/space /exclamdown /cent /sterling /currency /yen /brokenbar /section 
+/dieresis /copyright /ordfeminine /guillemotleft /logicalnot /hyphen /registered /macron 
+/degree /plusminus /twosuperior /threesuperior /acute /mu /paragraph /bullet 
+/cedilla /onesuperior /ordmasculine /guillemotright /onequarter /onehalf /threequarters /questiondown 
+/Agrave /Aacute /Acircumflex /Atilde /Adieresis /Aring /AE /Ccedilla 
+/Egrave /Eacute /Ecircumflex /Edieresis /Igrave /Iacute /Icircumflex /Idieresis 
+/Eth /Ntilde /Ograve /Oacute /Ocircumflex /Otilde /Odieresis /multiply 
+/Oslash /Ugrave /Uacute /Ucircumflex /Udieresis /Yacute /Thorn /germandbls 
+/agrave /aacute /acircumflex /atilde /adieresis /aring /ae /ccedilla 
+/egrave /eacute /ecircumflex /edieresis /igrave /iacute /icircumflex /idieresis 
+/eth /ntilde /ograve /oacute /ocircumflex /otilde /odieresis /divide 
+/oslash /ugrave /uacute /ucircumflex /udieresis /yacute /thorn /ydieresis 
+] def
+%%EndResource
+% Initialize page description variables.
+/sh 595 def
+/sw 842 def
+/llx 24 def
+/urx 818 def
+/ury 571 def
+/lly 24 def
+/#copies 1 def
+/th 15.000000 def
+/fnfs 11 def
+/bfs 8.005733 def
+/cw 4.803440 def
+
+% Dictionary for ISO-8859-1 support
+/iso1dict 8 dict begin
+  /fCourier ISO-8859-1Encoding /Courier reencode_font
+  /fCourier-Bold ISO-8859-1Encoding /Courier-Bold reencode_font
+  /fCourier-BoldOblique ISO-8859-1Encoding /Courier-BoldOblique reencode_font
+  /fCourier-Oblique ISO-8859-1Encoding /Courier-Oblique reencode_font
+  /fHelvetica ISO-8859-1Encoding /Helvetica reencode_font
+  /fHelvetica-Bold ISO-8859-1Encoding /Helvetica-Bold reencode_font
+  /fTimes-Bold ISO-8859-1Encoding /Times-Bold reencode_font
+  /fTimes-Roman ISO-8859-1Encoding /Times-Roman reencode_font
+currentdict end def
+/bgcolor [ 0 0 0 ] def
+/bg false def
+/ul false def
+/bx false def
+% The font for line numbering
+/f# /Helvetica findfont bfs .6 mul scalefont def
+/fSymbol /Symbol findfont def
+/hm fnfs 0.25 mul def
+/pw
+   cw 81.400000 mul
+def
+/ph
+   501.959430 th add
+def
+/pmw urx llx sub pw 2 mul sub 1 div def
+/pmh 0 def
+/v 0 def
+/x [
+  0
+  dup pmw add pw add
+] def
+/y [
+  pmh ph add 0 mul ph add
+  dup
+] def
+/scx sw 2 div def
+/scy sh 2 div def
+/snx urx def
+/sny lly 2 add def
+/dx llx def
+/dy sny def
+/fnx scx def
+/fny dy def
+/lx snx def
+/ly ury fnfs 0.8 mul sub def
+/sx 0 def
+/tab 8 def
+/x0 0 def
+/y0 0 def
+%%EndSetup
+
+%%Page: (1) 1
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <vector>) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(template) K
+( <) p
+(class) K
+( T, ) p
+(class) K
+( cmp = std::less<T>>) p n
+(struct) k
+( discretize {) p n
+(    std::vector<T> vec;) N
+(    ) S
+(void) k
+( build\(\) {) p n
+(        sort\(vec.begin\(\), vec.end\(\), cmp\(\)\);) N
+(        vec.resize\(unique\(vec.begin\(\), vec.end\(\)\) - vec.begin\(\)\);) N
+(    }) N
+(    size_t ) S
+(operator) K
+([]\() p
+(const) K
+( T &x\) {) p n
+(        ) S
+(return) K
+( lower_bound\(vec.begin\(\), vec.end\(\), x, cmp\(\)\) - vec.begin\(\);) p n
+(    }) N
+(};) N
+(discretization.hpp) (\351\241\265 1/1) (2025-12-20 18:59) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./algorithm/discretization.hpp) (1/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1-2) 2
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <array>) p n
+(#include) K
+( <string>) p n
+(#include) K
+( <vector>) p n
+() N
+(namespace) K
+( string_utils {) p n
+(    ) S
+(using) K
+( std::string;) p n
+() N
+(    ) S
+(const) K
+( std::vector<) p
+(char) k
+(> charset{') p
+(0) str
+(', ') p
+(1) str
+('};) p n
+(    ) S
+(const) K
+( size_t charset_size = 2;) p n
+() N
+(    ) S
+(const) K
+( size_t npos = ) p
+(static_cast) k
+(<size_t>\(-1\);) p n
+() N
+(    std::vector<size_t> calculate_nxt\() S
+(const) K
+( string &s\) {) p n
+(        std::vector<size_t> nxt\(s.size\(\) + 1\);) N
+(        nxt[0] = npos;) N
+(        size_t nxt_pos = nxt[0];) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < s.size\(\); i++\) {) p n
+(            ) S
+(while) K
+( \(nxt_pos != npos && s[nxt_pos] != s[i]\) {) p n
+(                nxt_pos = nxt[nxt_pos];) N
+(            }) N
+(            nxt_pos++;) N
+(            nxt[i + 1] = nxt_pos;) N
+(        }) N
+(        ) S
+(return) K
+( nxt;) p n
+(    }) N
+() N
+(    std::vector<std::array<size_t, charset_size>>) N
+(    kmp_automaton\() S
+(const) K
+( string &s, ) p
+(const) K
+( std::vector<size_t> &nxt\) {) p n
+(        std::vector<std::array<size_t, charset_size>> res\(s.size\(\)\);) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < s.size\(\); i++\) {) p n
+(            ) S
+(for) K
+( \(size_t j = 0; j < charset.size\(\); j++\) {) p n
+(                ) S
+(auto) K
+( nxt_char = charset[j];) p n
+(                ) S
+(if) K
+( \(nxt_char == s[i]\) {) p n
+(                    res[i][j] = i + 1;) N
+(                }) N
+(                ) S
+(else) K
+( {) p n
+(                    ) S
+(if) K
+( \(nxt[i] == npos\) {) p n
+(                        res[i][j] = 0;) N
+(                    }) N
+(                    ) S
+(else) K
+( {) p n
+(                        res[i][j] = res[nxt[i]][j];) N
+(                    }) N
+(                }) N
+(            }) N
+(        }) N
+(        ) S
+(return) K
+( res;) p n
+(    }) N
+() N
+(    std::vector<size_t> match\() S
+(const) K
+( string &s, ) p
+(const) K
+( string &t,) p n
+(                              ) S
+(const) K
+( std::vector<size_t> &nxt\) {) p n
+(        std::vector<size_t> ret\(t.size\(\) + 1\);) N
+(        size_t nxt_pos = 0;) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < t.size\(\); i++\) {) p n
+(            ) S
+(while) K
+( \(nxt_pos == s.size\(\) ||) p n
+(                   \(nxt_pos != npos && s[nxt_pos] != t[i]\)\) {) N
+(                nxt_pos = nxt[nxt_pos];) N
+(            }) N
+(            nxt_pos++;) N
+(            ret[i + 1] = nxt_pos;) N
+(        }) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+(kmp.hpp) (\351\241\265 1/2) (2025-11-20 21:01) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(}; ) p
+(// namespace string_utils) c n
+(kmp.hpp) (\351\241\265 2/2) (2025-11-20 21:01) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./algorithm/kmp.hpp) (2/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 3
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <vector>) p n
+() N
+(namespace) K
+( ds {) p n
+(using) K
+( std::vector;) p n
+() N
+(template) K
+( <) p
+(class) K
+( T>) p n
+(struct) k
+( adj_table {) p n
+() N
+(    ) S
+(struct) k
+( node {) p n
+(        T val;) N
+(        size_t nxt;) N
+(    };) N
+() N
+(    ) S
+(static) K
+( ) p
+(const) K
+( size_t npos = ) p
+(static_cast) k
+(<size_t>\(-1\);) p n
+() N
+(    vector<size_t> head;) N
+(    vector<node> nd;) N
+() N
+(    adj_table\(size_t n\) : head\(n, npos\), nd\(\) {}) N
+() N
+(    adj_table\(\) {}) N
+() N
+(    ) S
+(void) k
+( insert\(size_t pos, ) p
+(const) K
+( T &_val\) {) p n
+(        nd.push_back\(node{_val, head[pos]}\);) N
+(        head[pos] = nd.size\(\) - 1;) N
+(    }) N
+() N
+(    size_t next_pos\(size_t i\) { ) S
+(return) K
+( nd[i].nxt; }) p n
+(};) N
+() N
+(template) K
+( <) p
+(class) K
+( T>) p n
+(const) K
+( size_t adj_table<T>::npos;) p n
+(} ) S
+(// namespace ds) c n
+(adj_table.hpp) (\351\241\265 1/1) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./data_structure/adj_table.hpp) (3/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 4
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <array>) p n
+(#include) K
+( <vector>) p n
+() N
+(using) K
+( ) p
+(namespace) K
+( std;) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(size_t lowbit\(size_t x\) { ) S
+(return) K
+( x & -x; }) p n
+() N
+(template) K
+( <) p
+(class) K
+( T, size_t N>) p n
+(struct) k
+( bit {) p n
+(    array<T, N> t;) N
+(    ) S
+(void) k
+( add\(size_t p, T val\) {) p n
+(        ) S
+(for) K
+( \(; p < N; p += lowbit\(p\)\) {) p n
+(            t[p] += val;) N
+(        }) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(    T query\(size_t p\) ) S
+(const) K
+( {) p n
+(        ) S
+(if) K
+( \(p < 0\) {) p n
+(            ) S
+(return) K
+( 0;) p n
+(        }) N
+(        T ret = 0;) N
+(        ) S
+(for) K
+( \(; p; p -= lowbit\(p\)\) {) p n
+(            ret += t[p];) N
+(        }) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+(    T query\(size_t l, size_t r\) ) S
+(const) K
+( { ) p
+(return) K
+( query\(r\) - query\(l - 1\); }) p n
+(};) N
+() N
+(template) K
+( <) p
+(class) K
+( T, size_t N>) p n
+(struct) k
+( bit_with_coef {) p n
+(  ) S
+(private) K
+(:) p n
+(    ) S
+(void) k
+( add\(size_t pos, T val\) {) p n
+(        ) S
+(// \350\277M-^Y\344\270\252\345M-^G\275\346M-^U\260\350\277M-^T\345M-^[M-^^\347M-^ZM-^D\346M-^X\257\345M-^IM-^M\347\274M-^@\345) c n
+(M-^RM-^L\343M-^@M-^B) N
+(        ) p
+(// \345\271\266\344\270M-^M\346M-^X\257\345M-^MM-^U\347M-^B\271\347M-^ZM-^D\345M-^@\274\343M-^@M-^B) c n
+(        b.add\(pos, val\);) p n
+(        c.add\(pos, val * sum_coef[pos - 1]\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(    ll query\(size_t r\) ) S
+(const) K
+( { ) p
+(return) K
+( sum_coef[r] * b.query\(r\) - c.query\(r\); }) p n
+() N
+(  ) S
+(public) K
+(:) p n
+(    array<T, N> sum_coef;) N
+(    bit<T, N> b, c;) N
+(    ) S
+(void) k
+( build\() p
+(const) K
+( vector<T> &vec\) {) p n
+(        copy\(vec.begin\(\), vec.end\(\), sum_coef.begin\(\)\);) N
+(        ) S
+(for) K
+( \(size_t i = 1; i < vec.size\(\); i++\) {) p n
+(            sum_coef[i] += sum_coef[i - 1];) N
+(        }) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(    ) S
+(void) k
+( add\(size_t l, size_t r, T val\) {) p n
+(        add\(l, val\);) N
+(        add\(r + 1, -val\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(    ll query\(size_t l, size_t r\) ) S
+(const) K
+( { ) p
+(return) K
+( query\(r\) - query\(l - 1\); }) p n
+(};) N
+(bit.hpp) (\351\241\265 1/1) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./data_structure/bit.hpp) (4/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 5
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <vector>) p n
+(using) K
+( ) p
+(namespace) K
+( std;) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(namespace) K
+( data_structure {) p n
+(struct) k
+( dsu {) p n
+(    vector<size_t> fa;) N
+(    dsu\(\) {}) N
+(    ) S
+(void) k
+( push_back\(\) { fa.push_back\(fa.size\(\)\); }) p n
+(    ) S
+(void) k
+( resize\(size_t sz\) {) p n
+(        ) S
+(while) K
+( \(fa.size\(\) < sz\) {) p n
+(            push_back\(\);) N
+(        }) N
+(    }) N
+(    size_t find_root\(size_t p\) {) N
+(        ) S
+(if) K
+( \(fa[p] == p\) {) p n
+(            ) S
+(return) K
+( p;) p n
+(        }) N
+(        ) S
+(else) K
+( {) p n
+(            ) S
+(return) K
+( fa[p] = find_root\(fa[p]\);) p n
+(        }) N
+(    }) N
+(    ) S
+(bool) k
+( is_same\(size_t x, size_t y\) { ) p
+(return) K
+( find_root\(x\) == find_root\(y\); }) p n
+(    ) S
+(void) k
+( merge\(size_t x, size_t y\) {) p n
+(        size_t rx = find_root\(x\), ry = find_root\(y\);) N
+(        ) S
+(if) K
+( \(rx != ry\) {) p n
+(            fa[rx] = ry;) N
+(        }) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(};) N
+(} ) S
+(// namespace data_structure) c n
+(dsu.hpp) (\351\241\265 1/1) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./data_structure/dsu.hpp) (5/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 6
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( ") p
+(math/modular.hpp) str
+(") p n
+() N
+(namespace) K
+( string_utils {) p n
+(template) K
+( <ull base, ull mod>) p n
+(struct) k
+( hash_string {) p n
+(    std::vector<maths::modular<mod>> prime_pow, h;) N
+(    std::string s;) N
+(    ) S
+(static) K
+( ) p
+(const) K
+( size_t npos = -1;) p n
+(    hash_string\() S
+(const) K
+( std::string &_s\) : s\(_s\) {) p n
+(        prime_pow.resize\(s.size\(\) + 1\);) N
+(        prime_pow[0] = 1;) N
+(        ) S
+(for) K
+( \(size_t i = 1; i < prime_pow.size\(\); i++\) {) p n
+(            prime_pow[i] = base * prime_pow[i - 1];) N
+(        }) N
+(        h.resize\(s.size\(\) + 1\);) N
+(        h[0] = 0;) N
+(        ) S
+(for) K
+( \(size_t i = 1; i < s.size\(\); i++\) {) p n
+(            h[i] = h[i - 1] * base + s[i - 1] - ') S
+(A) str
+(';) p n
+(        }) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+() N
+(    maths::modular<mod> substr\(size_t pos, size_t len\) {) N
+(        ) S
+(return) K
+( h[pos + len] - h[pos] * prime_pow[len];) p n
+(    }) N
+() N
+(    size_t size\(\) ) S
+(const) K
+( { ) p
+(return) K
+( s.size\(\); }) p n
+() N
+(    size_t find\() S
+(const) K
+( hash_string &str, size_t pos = 0\) {) p n
+(        ) S
+(for) K
+( \(size_t i = pos; i + str.size\(\) <= s.size\(\); i++\) {) p n
+(            ) S
+(if) K
+( \(substr\(i, str.size\(\)\) == str.h.back\(\)\) {) p n
+(                ) S
+(return) K
+( pos;) p n
+(            }) N
+(        }) N
+(        ) S
+(return) K
+( npos;) p n
+(    }) N
+(};) N
+(} ) S
+(// namespace string_utils) c
+(hash_string.hpp) (\351\241\265 1/1) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./data_structure/hash_string.hpp) (6/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1-2) 7
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <functional>) p n
+(#include) K
+( <vector>) p n
+() N
+(namespace) K
+( data_structure {) p n
+(template) K
+( <) p
+(class) K
+( info_t, ) p
+(class) K
+( tag_t, ) p
+(class) K
+( merge_info_op = std::plus<info_t>,) p n
+(          ) S
+(class) K
+( apply_op = std::multiplies<) p
+(void) k
+(>,) p n
+(          ) S
+(class) K
+( merge_tag_op = std::plus<tag_t>>) p n
+(class) K
+( lazy_segtree {) p n
+(  ) S
+(public) K
+(:) p n
+(    ) S
+(const) K
+( merge_info_op merge_info;) p n
+(    ) S
+(const) K
+( apply_op apply_to_info;) p n
+(    ) S
+(const) K
+( merge_tag_op merge_tag;) p n
+(    ) S
+(const) K
+( info_t id_info;) p n
+(    ) S
+(const) K
+( tag_t id_tag;) p n
+(    ) S
+(const) K
+( size_t npos = ) p
+(static_cast) k
+(<size_t>\(-1\);) p n
+() N
+(    ) S
+(struct) k
+( node {) p n
+(        info_t info;) N
+(        tag_t tag;) N
+() N
+(        size_t l, r;) N
+() N
+(        size_t mid\(\) ) S
+(const) K
+( { ) p
+(return) K
+( \(l + r\) / 2; }) p n
+(    };) N
+() N
+(    std::vector<node> t;) N
+() N
+(  ) S
+(private) K
+(:) p n
+(    size_t lc\() S
+(const) K
+( size_t &p\) ) p
+(const) K
+( { ) p
+(return) K
+( 2 * p; }) p n
+(    size_t rc\() S
+(const) K
+( size_t &p\) ) p
+(const) K
+( { ) p
+(return) K
+( 2 * p + 1; }) p n
+(    ) S
+(void) k
+( update\(size_t p\) {) p n
+(        t[p].info = merge_info\(t[lc\(p\)].info, t[rc\(p\)].info\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+() N
+(    ) S
+(void) k
+( apply_to_node\(size_t p, ) p
+(const) K
+( tag_t &tag\) {) p n
+(        t[p].tag = merge_tag\(tag, t[p].tag\);) N
+(        t[p].info = apply_to_info\(tag, t[p].info\);) N
+(    }) N
+() N
+(    ) S
+(void) k
+( spread\(size_t p\) {) p n
+(        apply_to_node\(lc\(p\), t[p].tag\);) N
+(        apply_to_node\(rc\(p\), t[p].tag\);) N
+(        t[p].tag = id_tag;) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+() N
+(    ) S
+(void) k
+( build\(size_t l, size_t r, ) p
+(const) K
+( std::vector<info_t> &init_val,) p n
+(               size_t p = 1\) {) N
+(        t[p].l = l;) N
+(        t[p].r = r;) N
+(        t[p].info = id_info;) N
+(        t[p].tag = id_tag;) N
+(        ) S
+(if) K
+( \(l + 1 == r\) {) p n
+(            t[p].info = init_val[l];) N
+(            ) S
+(return) K
+(;) p n
+(        }) N
+(        size_t mid = t[p].mid\(\);) N
+(        build\(l, mid, init_val, lc\(p\)\);) N
+(        build\(mid, r, init_val, rc\(p\)\);) N
+(        update\(p\);) N
+(        ) S
+(return) K
+(;) p n
+(lazy_segtree.hpp) (\351\241\265 1/3) (2026-03-20 19:41) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    }) p n
+() N
+(  ) S
+(public) K
+(:) p n
+(    lazy_segtree\(\)) N
+(        : merge_info\(\), apply_to_info\(\), merge_tag\(\), id_info\(\), id_tag\(\), t\(\) {) N
+(    }) N
+() N
+(    lazy_segtree\(size_t n, ) S
+(const) K
+( merge_info_op &_merge_info = merge_info_op\(\),) p n
+(                 ) S
+(const) K
+( apply_op &_apply = apply_op\(\),) p n
+(                 ) S
+(const) K
+( merge_tag_op &_merge_tag = merge_tag_op\(\),) p n
+(                 ) S
+(const) K
+( info_t &_info_id = info_t\(\),) p n
+(                 ) S
+(const) K
+( tag_t &_tag_id = tag_t\(\)\)) p n
+(        : merge_info\(_merge_info\), apply_to_info\(_apply\), merge_tag\(_merge_tag\),) N
+(          id_info\(_info_id\), id_tag\(_tag_id\), t\(n * 4\) {) N
+(        build\(0, n, std::vector<info_t>\(n, id_info\)\);) N
+(    }) N
+() N
+(    ) S
+(template) K
+( <) p
+(class) K
+( iter>) p n
+(    ) S
+(void) k
+( assign\(iter iter_begin, iter iter_end\) {) p n
+(        size_t n = std::distance\(iter_begin, iter_end\);) N
+(        build\(0, n, std::vector<info_t>\(iter_begin, iter_end\)\);) N
+(    }) N
+() N
+(    ) S
+(template) K
+( <) p
+(class) K
+( iter>) p n
+(    lazy_segtree\(iter iter_begin, iter iter_end,) N
+(                 ) S
+(const) K
+( merge_info_op &_merge_info = merge_info_op\(\),) p n
+(                 ) S
+(const) K
+( apply_op &_apply = apply_op\(\),) p n
+(                 ) S
+(const) K
+( merge_tag_op &_merge_tag = merge_tag_op\(\),) p n
+(                 ) S
+(const) K
+( info_t &_info_id = info_t\(\),) p n
+(                 ) S
+(const) K
+( tag_t &_tag_id = tag_t\(\)\)) p n
+(        : merge_info\(_merge_info\), apply_to_info\(_apply\), merge_tag\(_merge_tag\),) N
+(          id_info\(_info_id\), id_tag\(_tag_id\),) N
+(          t\(std::distance\(iter_begin, iter_end\) * 4\) {) N
+(        assign\(iter_begin, iter_end\);) N
+(    }) N
+() N
+(    ) S
+(void) k
+( apply\(size_t l, size_t r, ) p
+(const) K
+( tag_t &tag, size_t p = 1\) {) p n
+(        ) S
+(if) K
+( \(l <= t[p].l && t[p].r <= r\) {) p n
+(            apply_to_node\(p, tag\);) N
+(            ) S
+(return) K
+(;) p n
+(        }) N
+(        size_t mid = t[p].mid\(\);) N
+(        spread\(p\);) N
+(        ) S
+(if) K
+( \(l < mid\) {) p n
+(            apply\(l, r, tag, lc\(p\)\);) N
+(        }) N
+(        ) S
+(if) K
+( \(mid < r\) {) p n
+(            apply\(l, r, tag, rc\(p\)\);) N
+(        }) N
+(        update\(p\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+() N
+(    info_t query\(size_t l, size_t r, size_t p = 1\) {) N
+(        ) S
+(if) K
+( \(l <= t[p].l && t[p].r <= r\) {) p n
+(            ) S
+(return) K
+( t[p].info;) p n
+(        }) N
+(        size_t mid = t[p].mid\(\);) N
+(        spread\(p\);) N
+(        info_t ret = id_info;) N
+(        ) S
+(if) K
+( \(l < mid\) {) p n
+(            ret = merge_info\(query\(l, r, lc\(p\)\), ret\);) N
+(lazy_segtree.hpp) (\351\241\265 2/3) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./data_structure/lazy_segtree.hpp) (7/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (3) 8
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(        }) p n
+(        ) S
+(if) K
+( \(mid < r\) {) p n
+(            ret = merge_info\(ret, query\(l, r, rc\(p\)\)\);) N
+(        }) N
+(        update\(p\);) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+() N
+(    ) S
+(void) k
+( set\(size_t pos, ) p
+(const) K
+( info_t &info, size_t p = 1\) {) p n
+(        ) S
+(if) K
+( \(t[p].l + 1 == t[p].r\) {) p n
+(            t[p].info = info;) N
+(            ) S
+(return) K
+(;) p n
+(        }) N
+(        size_t mid = t[p].mid\(\);) N
+(        spread\(p\);) N
+(        ) S
+(if) K
+( \(pos < mid\) {) p n
+(            set\(pos, info, lc\(p\)\);) N
+(        }) N
+(        ) S
+(else) K
+( {) p n
+(            set\(pos, info, rc\(p\)\);) N
+(        }) N
+(        update\(p\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(};) N
+(} ) S
+(// namespace data_structure) c n
+(lazy_segtree.hpp) (\351\241\265 3/3) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./data_structure/lazy_segtree.hpp) (8/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1-2) 9
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <algorithm>) p n
+(#include) K
+( <functional>) p n
+(#include) K
+( <vector>) p n
+() N
+(using) K
+( ) p
+(namespace) K
+( std;) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(namespace) K
+( data_structure {) p n
+(namespace) K
+( functor {) p n
+(template) K
+( <) p
+(class) K
+( T, ) p
+(class) K
+( cmp = less<T>>) p n
+(struct) k
+( min_element {) p n
+(    cmp compare;) N
+(    min_element\(\) : compare\(\) {}) N
+(    min_element\(cmp c\) : compare\(c\) {}) N
+(    T ) S
+(operator) K
+(\(\)\() p
+(const) K
+( T &a, ) p
+(const) K
+( T &b\) ) p
+(const) K
+( {) p n
+(        ) S
+(return) K
+( std::min\(a, b, compare\);) p n
+(    }) N
+(};) N
+() N
+(template) K
+( <) p
+(class) K
+( T, ) p
+(class) K
+( cmp = less<T>>) p n
+(struct) k
+( max_element {) p n
+(    cmp compare;) N
+(    max_element\(\) : compare\(\) {}) N
+(    max_element\(cmp c\) : compare\(c\) {}) N
+(    T ) S
+(operator) K
+(\(\)\() p
+(const) K
+( T &a, ) p
+(const) K
+( T &b\) ) p
+(const) K
+( {) p n
+(        ) S
+(return) K
+( std::max\(a, b, compare\);) p n
+(    }) N
+(};) N
+(} ) S
+(// namespace functor) c n
+() p n
+(template) K
+( <) p
+(class) K
+( T, ) p
+(class) K
+( binary_op = functor::min_element<T>>) p n
+(struct) k
+( sparse_table {) p n
+(    vector<vector<T>> vec;) N
+(    binary_op op;) N
+(    sparse_table\(\) : vec\(\), op\(\) {}) N
+(    ) S
+(template) K
+( <) p
+(class) K
+( iter>) p n
+(    sparse_table\(iter begin, iter end, binary_op _op = binary_op\(\)\) : op\(_op\) {) N
+(        size_t sz = distance\(begin, end\);) N
+(        size_t lg_sz = __lg\(sz\) + 1;) N
+(        vec.resize\(lg_sz + 1\);) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < lg_sz; i++\) {) p n
+(            vec[i].resize\(sz\);) N
+(        }) N
+(        copy\(begin, end, vec[0].begin\(\)\);) N
+(        ) S
+(for) K
+( \(size_t i = 1; i < lg_sz; i++\) {) p n
+(            ) S
+(for) K
+( \(size_t j = 0; j < sz; j++\) {) p n
+(                size_t nxt = j + \(1 << \(i - 1\)\);) N
+(                ) S
+(if) K
+( \(nxt >= sz\) {) p n
+(                    vec[i][j] = vec[i - 1][j];) N
+(                }) N
+(                ) S
+(else) K
+( {) p n
+(                    vec[i][j] = op\(vec[i - 1][j], vec[i - 1][nxt]\);) N
+(                }) N
+(            }) N
+(        }) N
+(    }) N
+(    T query\(size_t l, size_t r\) ) S
+(const) K
+( {) p n
+(        size_t sz = r - l;) N
+(        size_t lg = __lg\(sz\);) N
+(        ) S
+(return) K
+( op\(vec[lg][l], vec[lg][r - \(1 << lg\)]\);) p n
+(sparse_table.hpp) (\351\241\265 1/2) (2026-03-20 19:41) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    }) p n
+(};) N
+(} ) S
+(// namespace data_structure) c n
+(sparse_table.hpp) (\351\241\265 2/2) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./data_structure/sparse_table.hpp) (9/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 10
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <functional>) p n
+(#include) K
+( <vector>) p n
+() N
+(using) K
+( ) p
+(namespace) K
+( std;) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(namespace) K
+( data_structure {) p n
+(template) K
+( <) p
+(class) K
+( T, ) p
+(class) K
+( binary_op = plus<T>, ) p
+(class) K
+( inv_op = minus<T>>) p n
+(struct) k
+( sum_prefix {) p n
+(    ) S
+(const) K
+( size_t npos = -1;) p n
+(    vector<T> vec;) N
+(    ) S
+(const) K
+( T unit_element;) p n
+(    sum_prefix\() S
+(const) K
+( vector<T> &_vec, T _unit = T\(\)\) : unit_element\(_unit\) {) p n
+(        vec = _vec;) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < vec.size\(\) - 1; i++\) {) p n
+(            vec[i + 1] += vec[i];) N
+(        }) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(    ) S
+(template) K
+( <) p
+(class) K
+( iter>) p n
+(    sum_prefix\(iter begin, iter end, T _unit = T\(\)\) : unit_element\(_unit\) {) N
+(        vec.resize\(distance\(begin, end\)\);) N
+(        copy\(begin, end, vec.begin\(\)\);) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < vec.size\(\) - 1; i++\) {) p n
+(            vec[i + 1] = binary_op\(\)\(vec[i + 1], vec[i]\);) N
+(        }) N
+(    }) N
+(    T query\(size_t l, size_t r\) ) S
+(const) K
+( {) p n
+(        ) S
+(return) K
+( inv_op\(\)\(vec[r - 1], \(l == 0 ? unit_element : vec[l - 1]\)\);) p n
+(    }) N
+(    T query\(size_t pos\) {) N
+(        ) S
+(return) K
+( pos - 1 == npos ? unit_element : vec[pos - 1];) p n
+(    }) N
+(};) N
+(} ) S
+(// namespace data_structure) c
+(sum_prefix.hpp) (\351\241\265 1/1) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./data_structure/sum_prefix.hpp) (10/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1-2) 11
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <algorithm>) p n
+(#include) K
+( <functional>) p n
+(#include) K
+( <iostream>) p n
+(#include) K
+( <iterator>) p n
+(#include) K
+( <vector>) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(namespace) K
+( ds {) p n
+(template) K
+( <) p
+(class) K
+( info_t, ) p
+(class) K
+( tag_t, ) p
+(class) K
+( merge_info_op = std::plus<info_t>,) p n
+(          ) S
+(class) K
+( apply_op = std::multiplies<) p
+(void) k
+(>,) p n
+(          ) S
+(class) K
+( merge_tag_op = std::plus<tag_t>>) p n
+(class) K
+( lazy_segtree {) p n
+(  ) S
+(public) K
+(:) p n
+(    ) S
+(const) K
+( merge_info_op merge_info;) p n
+(    ) S
+(const) K
+( apply_op apply_to_info;) p n
+(    ) S
+(const) K
+( merge_tag_op merge_tag;) p n
+(    ) S
+(const) K
+( info_t id_info;) p n
+(    ) S
+(const) K
+( tag_t id_tag;) p n
+(    ) S
+(const) K
+( size_t npos = ) p
+(static_cast) k
+(<size_t>\(-1\);) p n
+() N
+(    ) S
+(struct) k
+( node {) p n
+(        info_t info;) N
+(        tag_t tg;) N
+() N
+(        size_t l, r;) N
+() N
+(        size_t mid\(\) ) S
+(const) K
+( { ) p
+(return) K
+( \(l + r\) / 2; }) p n
+(    };) N
+() N
+(    std::vector<node> t;) N
+() N
+(  ) S
+(private) K
+(:) p n
+(    size_t lc\() S
+(const) K
+( size_t &p\) ) p
+(const) K
+( { ) p
+(return) K
+( 2 * p; }) p n
+(    size_t rc\() S
+(const) K
+( size_t &p\) ) p
+(const) K
+( { ) p
+(return) K
+( 2 * p + 1; }) p n
+(    ) S
+(void) k
+( update\(size_t p\) {) p n
+(        t[p].info = merge_info\(t[lc\(p\)].info, t[rc\(p\)].info\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+() N
+(    ) S
+(void) k
+( apply_to_node\(size_t p, ) p
+(const) K
+( tag_t &tag\) {) p n
+(        t[p].tg = merge_tag\(tag, t[p].tg\);) N
+(        t[p].info = apply_to_info\(t[p].info, tag\);) N
+(    }) N
+() N
+(    ) S
+(void) k
+( spread\(size_t p\) {) p n
+(        apply_to_node\(lc\(p\), t[p].tg\);) N
+(        apply_to_node\(rc\(p\), t[p].tg\);) N
+(        t[p].tg = id_tag;) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+() N
+(    ) S
+(void) k
+( build\(size_t l, size_t r, ) p
+(const) K
+( std::vector<info_t> &init_val,) p n
+(               size_t p = 1\) {) N
+(        t[p].l = l;) N
+(        t[p].r = r;) N
+(        t[p].info = id_info;) N
+(        t[p].tg = id_tag;) N
+(        ) S
+(if) K
+( \(l + 1 == r\) {) p n
+(            t[p].info = init_val[l];) N
+(            ) S
+(return) K
+(;) p n
+(P3372.cpp) (\351\241\265 1/4) (2026-03-20 19:41) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(        }) p n
+(        size_t mid = t[p].mid\(\);) N
+(        build\(l, mid, init_val, lc\(p\)\);) N
+(        build\(mid, r, init_val, rc\(p\)\);) N
+(        update\(p\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+() N
+(  ) S
+(public) K
+(:) p n
+(    lazy_segtree\(\)) N
+(        : merge_info\(\), apply_to_info\(\), merge_tag\(\), id_info\(\), id_tag\(\), t\(\) {) N
+(    }) N
+() N
+(    lazy_segtree\(size_t n, ) S
+(const) K
+( merge_info_op &_merge_info = merge_info_op\(\),) p n
+(                 ) S
+(const) K
+( apply_op &_apply = apply_op\(\),) p n
+(                 ) S
+(const) K
+( merge_tag_op &_merge_tag = merge_tag_op\(\),) p n
+(                 ) S
+(const) K
+( info_t &_info_id = info_t\(\),) p n
+(                 ) S
+(const) K
+( tag_t &_tag_id = tag_t\(\)\)) p n
+(        : merge_info\(_merge_info\), apply_to_info\(_apply\), merge_tag\(_merge_tag\),) N
+(          id_info\(_info_id\), id_tag\(_tag_id\), t\(n * 4\) {) N
+(        build\(0, n, std::vector<info_t>\(n, id_info\)\);) N
+(    }) N
+() N
+(    ) S
+(template) K
+( <) p
+(class) K
+( iter>) p n
+(    lazy_segtree\(iter iter_begin, iter iter_end,) N
+(                 ) S
+(const) K
+( merge_info_op &_merge_info = merge_info_op\(\),) p n
+(                 ) S
+(const) K
+( apply_op &_apply = apply_op\(\),) p n
+(                 ) S
+(const) K
+( merge_tag_op &_merge_tag = merge_tag_op\(\),) p n
+(                 ) S
+(const) K
+( info_t &_info_id = info_t\(\),) p n
+(                 ) S
+(const) K
+( tag_t &_tag_id = tag_t\(\)\)) p n
+(        : merge_info\(_merge_info\), apply_to_info\(_apply\), merge_tag\(_merge_tag\),) N
+(          id_info\(_info_id\), id_tag\(_tag_id\),) N
+(          t\(std::distance\(iter_begin, iter_end\) * 4\) {) N
+(        size_t n = std::distance\(iter_begin, iter_end\);) N
+(        build\(0, n, std::vector<info_t>\(iter_begin, iter_end\)\);) N
+(    }) N
+() N
+(    ) S
+(void) k
+( apply\(size_t l, size_t r, ) p
+(const) K
+( tag_t &tag, size_t p = 1\) {) p n
+(        ) S
+(if) K
+( \(l <= t[p].l && t[p].r <= r\) {) p n
+(            apply_to_node\(p, tag\);) N
+(            ) S
+(return) K
+(;) p n
+(        }) N
+(        size_t mid = t[p].mid\(\);) N
+(        spread\(p\);) N
+(        ) S
+(if) K
+( \(l < mid\) {) p n
+(            apply\(l, r, tag, lc\(p\)\);) N
+(        }) N
+(        ) S
+(if) K
+( \(mid < r\) {) p n
+(            apply\(l, r, tag, rc\(p\)\);) N
+(        }) N
+(        update\(p\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+() N
+(    info_t query\(size_t l, size_t r, size_t p = 1\) {) N
+(        ) S
+(if) K
+( \(l <= t[p].l && t[p].r <= r\) {) p n
+(            ) S
+(return) K
+( t[p].info;) p n
+(        }) N
+(        size_t mid = t[p].mid\(\);) N
+(        spread\(p\);) N
+(        info_t ret = id_info;) N
+(        ) S
+(if) K
+( \(l < mid\) {) p n
+(P3372.cpp) (\351\241\265 2/4) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./examples/P3372.cpp) (11/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (3-4) 12
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(            ret = merge_info\(query\(l, r, lc\(p\)\), ret\);) p n
+(        }) N
+(        ) S
+(if) K
+( \(mid < r\) {) p n
+(            ret = merge_info\(ret, query\(l, r, rc\(p\)\)\);) N
+(        }) N
+(        update\(p\);) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+() N
+(    ) S
+(void) k
+( set\(size_t pos, ) p
+(const) K
+( info_t &info, size_t p = 1\) {) p n
+(        ) S
+(if) K
+( \(t[p].l + 1 == t[p].r\) {) p n
+(            t[p].info = info;) N
+(            ) S
+(return) K
+(;) p n
+(        }) N
+(        size_t mid = t[p].mid\(\);) N
+(        spread\(p\);) N
+(        ) S
+(if) K
+( \(pos < mid\) {) p n
+(            set\(pos, info, lc\(p\)\);) N
+(        }) N
+(        ) S
+(else) K
+( {) p n
+(            set\(pos, info, rc\(p\)\);) N
+(        }) N
+(        update\(p\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(};) N
+(} ) S
+(// namespace ds) c n
+() p n
+(namespace) K
+( solve {) p n
+(struct) k
+( tag {) p n
+(    ll val;) N
+(    tag\(\) : val\(0\) {}) N
+(    tag\(ll _val\) : val\(_val\) {}) N
+(    tag ) S
+(operator) K
+(+\() p
+(const) K
+( tag &rhs\) ) p
+(const) K
+( { ) p
+(return) K
+( {val + rhs.val}; }) p n
+(};) N
+(struct) k
+( info {) p n
+(    ll val;) N
+(    size_t len;) N
+(    info\(\) : val\(0\), len\(0\) {}) N
+(    info\(ll _val, size_t _len\) : val\(_val\), len\(_len\) {}) N
+(    info ) S
+(operator) K
+(+\() p
+(const) K
+( info &rhs\) ) p
+(const) K
+( {) p n
+(        ) S
+(return) K
+( {val + rhs.val, len + rhs.len};) p n
+(    }) N
+(    info ) S
+(operator) K
+(*\() p
+(const) K
+( tag &tg\) ) p
+(const) K
+( {) p n
+(        ) S
+(return) K
+( {val + tg.val * \(ll\)len, len};) p n
+(    }) N
+(};) N
+() N
+(void) k
+( solve\(\) {) p n
+(    size_t n, q;) N
+(    std::cin >> n >> q;) N
+(    std::vector<ll> v\(n\);) N
+(    std::copy_n\(std::istream_iterator<ll>\(std::cin\), n, v.begin\(\)\);) N
+(    std::vector<info> new_v\(n\);) N
+(    ) S
+(for) K
+( \(size_t i = 0; i < n; i++\) {) p n
+(        new_v[i].val = v[i];) N
+(        new_v[i].len = 1;) N
+(    }) N
+(    ds::lazy_segtree<info, tag> sgt\(new_v.begin\(\), new_v.end\(\)\);) N
+(    ) S
+(while) K
+( \(q--\) {) p n
+(        size_t op;) N
+(        std::cin >> op;) N
+(P3372.cpp) (\351\241\265 3/4) (2026-03-20 19:41) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(        ) p
+(if) K
+( \(op == 1\) {) p n
+(            size_t x, y;) N
+(            ll k;) N
+(            std::cin >> x >> y >> k;) N
+(            x--;) N
+(            sgt.apply\(x, y, {k}\);) N
+(        }) N
+(        ) S
+(else) K
+( {) p n
+(            size_t x, y;) N
+(            std::cin >> x >> y;) N
+(            x--;) N
+(            std::cout << sgt.query\(x, y\).val << ") S
+(\\n) str
+(";) p n
+(        }) N
+(    }) N
+(    ) S
+(return) K
+(;) p n
+(}) N
+(}; ) S
+(// namespace solve) c n
+() p n
+(int) k
+( main\(\) {) p n
+(    solve::solve\(\);) N
+(    std::cout << std::flush;) N
+(    ) S
+(return) K
+( 0;) p n
+(}) N
+(P3372.cpp) (\351\241\265 4/4) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./examples/P3372.cpp) (12/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1-2) 13
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( ") p
+(data_structure/adj_table.hpp) str
+(") p n
+(#include) K
+( ") p
+(math/numbers.hpp) str
+(") p n
+(#include) K
+( <queue>) p n
+(#include) K
+( <vector>) p n
+() N
+(namespace) K
+( graph {) p n
+(template) K
+( <) p
+(typename) k
+( result_type>) p n
+(struct) k
+( network {) p n
+(    ) S
+(struct) k
+( edge {) p n
+(        size_t src, dest;) N
+(        result_type vol;) N
+(    };) N
+() N
+(    ds::adj_table<edge> g;) N
+() N
+(    size_t s, t;) N
+(    size_t n;) N
+() N
+(    std::vector<uint> dis;) N
+(    std::vector<size_t> cur;) N
+() N
+(    ) S
+(bool) k
+( bfs\(\) {) p n
+(        std::fill\(dis.begin\(\), dis.end\(\), numbers::inf<uint>\(\)\);) N
+(        std::vector<) S
+(bool) k
+(> vis\(n\);) p n
+() N
+(        std::queue<size_t> q;) N
+() N
+(        q.push\(s\);) N
+(        vis[s] = ) S
+(true) k
+(;) p n
+(        dis[s] = 0;) N
+() N
+(        ) S
+(while) K
+( \(!q.empty\(\)\) {) p n
+(            ) S
+(auto) K
+( f = q.front\(\);) p n
+(            q.pop\(\);) N
+() N
+(            ) S
+(for) K
+( \(size_t i = g.head[f]; i != ds::adj_table<edge>::npos;) p n
+(                 i = g.next_pos\(i\)\) {) N
+(                ) S
+(const) K
+( edge &e = g.nd[i].val;) p n
+(                ) S
+(if) K
+( \(!vis[e.dest] && e.vol != 0\) {) p n
+(                    dis[e.dest] = dis[f] + 1;) N
+(                    vis[e.dest] = ) S
+(true) k
+(;) p n
+(                    q.push\(e.dest\);) N
+(                }) N
+(            }) N
+(        }) N
+() N
+(        cur = g.head;) N
+() N
+(        ) S
+(return) K
+( dis[t] != numbers::inf<uint>\(\);) p n
+(    }) N
+() N
+(    result_type dfs\(size_t p, result_type max_flow\) {) N
+(        ) S
+(if) K
+( \(p == t\) {) p n
+(            ) S
+(return) K
+( max_flow;) p n
+(        }) N
+() N
+(        result_type final_flow = 0;) N
+(        ) S
+(for) K
+( \(; cur[p] != ds::adj_table<edge>::npos;) p n
+(             cur[p] = g.next_pos\(cur[p]\)\) {) N
+(            ) S
+(const) K
+( ) p
+(auto) K
+( &i = cur[p];) p n
+(            ) S
+(const) K
+( edge &e = g.nd[i].val;) p n
+() N
+(network.hpp) (\351\241\265 1/2) (2026-03-20 19:41) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(            ) p
+(if) K
+( \(dis[e.dest] != dis[p] + 1\) {) p n
+(                ) S
+(continue) K
+(;) p n
+(            }) N
+() N
+(            ) S
+(auto) K
+( r = dfs\(e.dest, std::min\(e.vol, max_flow\)\);) p n
+(            g.nd[i].val.vol -= r;) N
+(            g.nd[i ^ 1].val.vol += r;) N
+(            final_flow += r;) N
+(            max_flow -= r;) N
+() N
+(            ) S
+(if) K
+( \(!max_flow\) {) p n
+(                ) S
+(/**) c n
+(                 * \347M-^T\261\344\272M-^N c++ \344\274M-^Z\345M-^EM-^H\350\277M-^[\350\241M-^L cur[p] = g.next_) N
+(pos\(cur[p]\) \350\277M-^Y\344\270\252\350\257\255\345M-^O\245\345M-^FM-^M\345M-^H\244\346M-^V\255\345M-^PM-^H\346\263M-^U\344\270M-^N\345M-^P\246\357\274) N
+(M-^L) N
+(                 * \345M-^[\240\346\255\244\345\246M-^B\346M-^^M-^\\ max_flow \346M-^A\260\345\245\275\345M-^GM-^O\345M-^H\260 0 ) N
+(\345\256M-^^\351M-^YM-^E\344\270M-^J\350\277M-^Y\351M-^GM-^L\345\271\266\346\262\241\346M-^\\M-^I\346\265M-^A\346\273\241\343M-^@M-^B) N
+(                 */) N
+(                ) p
+(break) K
+(;) p n
+(            }) N
+(        }) N
+() N
+(        ) S
+(return) K
+( final_flow;) p n
+(    }) N
+() N
+(    result_type dinic\(\) {) N
+(        result_type r = 0;) N
+(        ) S
+(while) K
+( \(bfs\(\)\) {) p n
+(            r += dfs\(s, numbers::inf<result_type>\(\)\);) N
+(        }) N
+(        ) S
+(return) K
+( r;) p n
+(    }) N
+() N
+(    network\(size_t _n, size_t _s, size_t _t\)) N
+(        : g\(_n\), s\(_s\), t\(_t\), n\(_n\), dis\(_n\), cur\(_n\) {}) N
+() N
+(    ) S
+(void) k
+( add_edge\(size_t src, size_t dest, result_type vol\) {) p n
+(        g.insert\(src, {src, dest, vol}\);) N
+(        g.insert\(dest, {dest, src, 0}\);) N
+(    }) N
+(};) N
+() N
+(} ) S
+(// namespace graph) c n
+(network.hpp) (\351\241\265 2/2) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./graph/network.hpp) (13/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1-2) 14
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <queue>) p n
+(#include) K
+( <vector>) p n
+() N
+(namespace) K
+( graph {) p n
+(template) K
+( <) p
+(typename) k
+( result_type, ) p
+(typename) k
+( cost_type>) p n
+(struct) k
+( network_with_cost {) p n
+(    ) S
+(struct) k
+( edge {) p n
+(        size_t src, dest;) N
+(        result_type vol;) N
+(        cost_type cost;) N
+(    };) N
+() N
+(    ds::adj_table<edge> g;) N
+() N
+(    size_t s, t;) N
+(    size_t n;) N
+() N
+(    std::vector<cost_type> dis;) N
+(    std::vector<size_t> prev_node;) N
+() N
+(    constexpr ) S
+(static) K
+( ) p
+(const) K
+( size_t npos = ) p
+(static_cast) k
+(<size_t>\(-1\);) p n
+() N
+(    ) S
+(bool) k
+( spfa\(\) {) p n
+(        std::fill\(dis.begin\(\), dis.end\(\), numbers::inf<uint>\(\)\);) N
+(        std::fill\(prev_node.begin\(\), prev_node.end\(\),) N
+(                  network_with_cost<result_type, cost_type>::npos\);) N
+() N
+(        std::queue<size_t> q;) N
+() N
+(        q.push\(s\);) N
+(        dis[s] = 0;) N
+() N
+(        ) S
+(while) K
+( \(!q.empty\(\)\) {) p n
+(            ) S
+(auto) K
+( f = q.front\(\);) p n
+(            q.pop\(\);) N
+() N
+(            ) S
+(for) K
+( \(size_t i = g.head[f]; i != ds::adj_table<edge>::npos;) p n
+(                 i = g.next_pos\(i\)\) {) N
+(                ) S
+(const) K
+( edge &e = g.nd[i].val;) p n
+(                ) S
+(if) K
+( \(dis[e.dest] > dis[f] + e.cost && e.vol != 0\) {) p n
+(                    dis[e.dest] = dis[f] + e.cost;) N
+(                    prev_node[e.dest] = i;) N
+(                    q.push\(e.dest\);) N
+(                }) N
+(            }) N
+(        }) N
+() N
+(        ) S
+(return) K
+( dis[t] != numbers::inf<cost_type>\(\);) p n
+(    }) N
+() N
+(    ) S
+(struct) k
+( flow {) p n
+(        result_type vol;) N
+(        cost_type cost;) N
+(    };) N
+() N
+(    flow ek\(\) {) N
+(        flow ret{0, 0};) N
+(        ) S
+(while) K
+( \(spfa\(\)\) {) p n
+(            result_type r = numbers::inf<result_type>\(\);) N
+(            cost_type c = 0;) N
+(            {) N
+(                size_t cur = t;) N
+(network_with_cost.hpp) (\351\241\265 1/2) (2026-03-20 19:41) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(                ) p
+(while) K
+( \(cur != s\) {) p n
+(                    ) S
+(const) K
+( ) p
+(auto) K
+( &e = g.nd[prev_node[cur]].val;) p n
+(                    c += e.cost;) N
+(                    r = std::min\(r, e.vol\);) N
+(                    cur = e.src;) N
+(                }) N
+(            }) N
+(            ret.cost += r * c;) N
+(            ret.vol += r;) N
+(            {) N
+(                size_t cur = t;) N
+(                ) S
+(while) K
+( \(cur != s\) {) p n
+(                    ) S
+(const) K
+( ) p
+(auto) K
+( &e = g.nd[prev_node[cur]].val;) p n
+(                    g.nd[prev_node[cur]].val.vol -= r;) N
+(                    g.nd[prev_node[cur] ^ 1].val.vol += r;) N
+(                    cur = e.src;) N
+(                }) N
+(            }) N
+(        }) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+() N
+(    network_with_cost\(size_t _n, size_t _s, size_t _t\)) N
+(        : g\(_n\), s\(_s\), t\(_t\), n\(_n\), dis\(_n\), prev_node\(_n\) {}) N
+() N
+(    ) S
+(void) k
+( add_edge\(size_t src, size_t dest, result_type vol, cost_type cost\) {) p n
+(        g.insert\(src, {src, dest, vol, cost}\);) N
+(        g.insert\(dest, {dest, src, 0, -cost}\);) N
+(    }) N
+(};) N
+() N
+(template) K
+( <) p
+(typename) k
+( result_type, ) p
+(typename) k
+( cost_type>) p n
+(const) K
+( size_t network_with_cost<result_type, cost_type>::npos;) p n
+(} ) S
+(// namespace graph) c n
+(network_with_cost.hpp) (\351\241\265 2/2) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./graph/network_with_cost.hpp) (14/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1-2) 15
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <cassert>) p n
+(using) K
+( ) p
+(namespace) K
+( std;) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(namespace) K
+( maths {) p n
+(struct) k
+( dynamic_modular {) p n
+(    ll x;) N
+(    ull mod;) N
+(    dynamic_modular\(\) : x\(0\), mod\(0\) {}) N
+(    dynamic_modular\(ll _x, ull _mod\) : x\(_x\), mod\(_mod\) {) N
+(        x %= \(ll\)mod;) N
+(        ) S
+(if) K
+( \(x < 0\) {) p n
+(            x += mod;) N
+(        }) N
+(    }) N
+(    dynamic_modular ) S
+(operator) K
+(+\() p
+(const) K
+( dynamic_modular &b\) ) p
+(const) K
+( {) p n
+(        assert\(mod == b.mod\);) N
+(        ) S
+(return) K
+( dynamic_modular\(x + b.x, mod\);) p n
+(    }) N
+(    ) S
+(template) K
+( <) p
+(class) K
+( T>) p n
+(    dynamic_modular ) S
+(operator) K
+(+\() p
+(const) K
+( T &b\) ) p
+(const) K
+( {) p n
+(        ) S
+(return) K
+( dynamic_modular\(x + b, mod\);) p n
+(    }) N
+(    dynamic_modular ) S
+(operator) K
+(*\() p
+(const) K
+( dynamic_modular &b\) {) p n
+(        assert\(mod == b.mod\);) N
+(        ) S
+(return) K
+( dynamic_modular\(x * b.x, mod\);) p n
+(    }) N
+(    ) S
+(template) K
+( <) p
+(class) K
+( T>) p n
+(    dynamic_modular ) S
+(operator) K
+(*\() p
+(const) K
+( T &b\) ) p
+(const) K
+( {) p n
+(        ) S
+(return) K
+( dynamic_modular\(x * b, mod\);) p n
+(    }) N
+(    dynamic_modular ) S
+(operator) K
+(-\() p
+(const) K
+( dynamic_modular &b\) ) p
+(const) K
+( {) p n
+(        assert\(mod == b.mod\);) N
+(        ) S
+(return) K
+( dynamic_modular\(x - b.x, mod\);) p n
+(    }) N
+(    ) S
+(template) K
+( <) p
+(class) K
+( T>) p n
+(    dynamic_modular ) S
+(operator) K
+(-\() p
+(const) K
+( T &b\) ) p
+(const) K
+( {) p n
+(        ) S
+(return) K
+( dynamic_modular\(x - b, mod\);) p n
+(    }) N
+(    ) S
+(template) K
+( <) p
+(class) K
+( T>) p n
+(    dynamic_modular ) S
+(operator) K
+(+=\() p
+(const) K
+( T &b\) {) p n
+(        ) S
+(return) K
+( *) p
+(this) K
+( = *) p
+(this) K
+( + b;) p n
+(    }) N
+(    ) S
+(template) K
+( <) p
+(class) K
+( T>) p n
+(    dynamic_modular ) S
+(operator) K
+(*=\() p
+(const) K
+( T &b\) {) p n
+(        ) S
+(return) K
+( *) p
+(this) K
+( = *) p
+(this) K
+( * b;) p n
+(    }) N
+(    ) S
+(template) K
+( <) p
+(class) K
+( T>) p n
+(    dynamic_modular ) S
+(operator) K
+(-=\() p
+(const) K
+( T &b\) {) p n
+(        ) S
+(return) K
+( *) p
+(this) K
+( = *) p
+(this) K
+( - b;) p n
+(    }) N
+(    ) S
+(void) k
+( setmod\(ull _mod\) {) p n
+(        mod = _mod;) N
+(        x %= mod;) N
+(        ) S
+(if) K
+( \(x < 0\) {) p n
+(            x += mod;) N
+(        }) N
+(    }) N
+(};) N
+() N
+(dynamic_modular.hpp) (\351\241\265 1/2) (2026-03-20 19:41) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(} ) p
+(// namespace maths) c n
+(dynamic_modular.hpp) (\351\241\265 2/2) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./math/dynamic_modular.hpp) (15/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 16
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <cmath>) p n
+() N
+(using) K
+( ld = ) p
+(long) k
+( ) p
+(double) k
+(;) p n
+() N
+(namespace) K
+( maths {) p n
+(ld sq\(ld x\) { ) S
+(return) K
+( x * x; }) p n
+() N
+(struct) k
+( point {) p n
+(    ld x, y;) N
+(    point ) S
+(operator) K
+(+\() p
+(const) K
+( point &b\) ) p
+(const) K
+( { ) p
+(return) K
+( {x + b.x, y + b.y}; }) p n
+(    point ) S
+(operator) K
+(-\() p
+(const) K
+( point &b\) ) p
+(const) K
+( { ) p
+(return) K
+( {x - b.x, y - b.y}; }) p n
+(    point ) S
+(operator) K
+(*\() p
+(const) K
+( ld &k\) ) p
+(const) K
+( { ) p
+(return) K
+( {x * k, y * k}; }) p n
+(    point ) S
+(operator) K
+(/\() p
+(const) K
+( ld &k\) ) p
+(const) K
+( { ) p
+(return) K
+( {x / k, y / k}; }) p n
+(    point ) S
+(operator) K
+(/=\() p
+(const) K
+( ld &k\) { ) p
+(return) K
+( *) p
+(this) K
+( = *) p
+(this) K
+( / k; }) p n
+(    ld len\(\) { ) S
+(return) K
+( sqrt\(sq\(x\) + sq\(y\)\); }) p n
+(};) N
+() N
+(ld dis\() S
+(const) K
+( point &a, ) p
+(const) K
+( point &b\) {) p n
+(    ) S
+(return) K
+( sqrt\(sq\(a.x - b.x\) + sq\(a.y - b.y\)\);) p n
+(}) N
+(} ) S
+(// namespace maths) c
+(point.hpp) (\351\241\265 1/1) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./math/geometry/point.hpp) (16/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1-2) 17
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <array>) p n
+(#include) K
+( <functional>) p n
+() N
+(namespace) K
+( maths {) p n
+(template) K
+( <size_t N, size_t M, ) p
+(typename) k
+( T = ) p
+(int) k
+(,) p n
+(          ) S
+(typename) k
+( plus_op_t = std::plus<>,) p n
+(          ) S
+(typename) k
+( multiply_op_t = std::multiplies<>>) p n
+(struct) k
+( matrix {) p n
+(    ) S
+(const) K
+( plus_op_t plus_op;) p n
+(    ) S
+(const) K
+( multiply_op_t multiply_op;) p n
+(    ) S
+(const) K
+( T id_plus, id_multiplies;) p n
+() N
+(    std::array<std::array<T, M>, N> mat;) N
+() N
+(    matrix clear\(\) {) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < N; i++\) {) p n
+(            mat[i].fill\(id_plus\);) N
+(        }) N
+(        ) S
+(return) K
+( *) p
+(this) K
+(;) p n
+(    }) N
+() N
+(    matrix reset\(\) {) N
+(        clear\(\);) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < std::min\(N, M\); i++\) {) p n
+(            mat[i][i] = id_multiplies;) N
+(        }) N
+(        ) S
+(return) K
+( *) p
+(this) K
+(;) p n
+(    }) N
+() N
+(    matrix\() S
+(const) K
+( plus_op_t _plus_op = plus_op_t\(\),) p n
+(           ) S
+(const) K
+( multiply_op_t _multiply_op = multiply_op_t\(\),) p n
+(           ) S
+(const) K
+( T _id_plus = T\(\), ) p
+(const) K
+( T _id_multiplies = T\(1\)\)) p n
+(        : plus_op\(_plus_op\), multiply_op\(_multiply_op\), id_plus\(_id_plus\),) N
+(          id_multiplies\(_id_multiplies\) {) N
+(        clear\(\);) N
+(    }) N
+() N
+(    matrix\() S
+(const) K
+( std::array<std::array<T, N>, M> &_mat,) p n
+(           ) S
+(const) K
+( plus_op_t _plus_op = plus_op_t\(\),) p n
+(           ) S
+(const) K
+( multiply_op_t _multiply_op = multiply_op_t\(\),) p n
+(           ) S
+(const) K
+( T _id_plus = T\(\), ) p
+(const) K
+( T _id_multiplies = T\(1\)\)) p n
+(        : plus_op\(_plus_op\), multiply_op\(_multiply_op\), id_plus\(_id_plus\),) N
+(          id_multiplies\(_id_multiplies\), mat\(_mat\) {}) N
+() N
+(    ) S
+(template) K
+( <size_t K>) p n
+(    ) S
+(friend) K
+( matrix<K, M, T> ) p
+(operator) K
+(*\() p
+(const) K
+( matrix<K, N, T> &lhs,) p n
+(                                     ) S
+(const) K
+( matrix<N, M, T> &rhs\) {) p n
+(        matrix<K, M, T, plus_op_t, multiply_op_t> ret\() N
+(            rhs.plus_op, rhs.multiply_op, rhs.id_plus, rhs.id_multiplies\);) N
+(        ret.clear\(\);) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < N; i++\) {) p n
+(            ) S
+(for) K
+( \(size_t k = 0; k < K; k++\) {) p n
+(                ) S
+(for) K
+( \(size_t j = 0; j < M; j++\) {) p n
+(                    ret.mat[k][j] = ret.plus_op\() N
+(                        ret.mat[k][j],) N
+(                        ret.multiply_op\(lhs.mat[k][i], rhs.mat[i][j]\)\);) N
+(                }) N
+(            }) N
+(        }) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+() N
+(matrix.hpp) (\351\241\265 1/2) (2026-03-20 19:41) title
+border
+/v 1 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    ) p
+(friend) K
+( matrix ) p
+(operator) K
+(+\() p
+(const) K
+( matrix &lhs, ) p
+(const) K
+( matrix &rhs\) {) p n
+(        matrix ret\(rhs.plus_op, rhs.multiply_op, rhs.id_plus,) N
+(                   rhs.id_multiplies\);) N
+(        ret.clear\(\);) N
+(        ) S
+(for) K
+( \(size_t i = 0; i < N; i++\) {) p n
+(            ) S
+(for) K
+( \(size_t j = 0; j < M; j++\) {) p n
+(                ret.mat[i][j] = ret.plus_op\(lhs.mat[i][j], rhs.mat[i][j]\);) N
+(            }) N
+(        }) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+() N
+(    matrix &) S
+(operator) K
+(=\() p
+(const) K
+( matrix &rhs\) {) p n
+(        mat = rhs.mat;) N
+(        ) S
+(return) K
+( *) p
+(this) K
+(;) p n
+(    }) N
+(};) N
+() N
+(} ) S
+(// namespace maths) c n
+(matrix.hpp) (\351\241\265 2/2) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./math/matrix.hpp) (17/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 18
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <iostream>) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(namespace) K
+( maths {) p n
+(template) K
+( <ull mod, ) p
+(class) K
+( int_type = ll, ) p
+(class) K
+( uint_type = ull>) p n
+(class) K
+( modular {) p n
+(  ) S
+(private) K
+(:) p n
+(    uint_type x;) N
+(    ) S
+(void) k
+( norm\(\) { x -= mod * \(x >= mod\); }) p n
+() N
+(  ) S
+(public) K
+(:) p n
+(    modular\(\) : x\(0\) {}) N
+(    modular\(int_type _x\) {) N
+(        ) S
+(if) K
+( \(x < 0\) {) p n
+(            x = _x % \(int_type\)mod + \(int_type\)mod;) N
+(        }) N
+(        ) S
+(else) K
+( {) p n
+(            x = _x % mod;) N
+(        }) N
+(        norm\(\);) N
+(        ) S
+(return) K
+(;) p n
+(    }) N
+(    ) S
+(friend) K
+( modular ) p
+(operator) K
+(+\() p
+(const) K
+( modular &lhs, ) p
+(const) K
+( modular &rhs\) {) p n
+(        modular ret;) N
+(        ret.x = lhs.x + rhs.x;) N
+(        ret.norm\(\);) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+(    ) S
+(friend) K
+( modular ) p
+(operator) K
+(-\() p
+(const) K
+( modular &lhs, ) p
+(const) K
+( modular &rhs\) {) p n
+(        modular ret;) N
+(        ret.x = lhs.x + mod - rhs.x;) N
+(        ret.norm\(\);) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+(    ) S
+(friend) K
+( modular ) p
+(operator) K
+(*\() p
+(const) K
+( modular &lhs, ) p
+(const) K
+( modular &rhs\) {) p n
+(        ) S
+(return) K
+( modular\(lhs.x * rhs.x\);) p n
+(    }) N
+(    modular ) S
+(operator) K
+(-\(\) ) p
+(const) K
+( {) p n
+(        modular ret;) N
+(        ret.x = mod - x;) N
+(        ) S
+(return) K
+( ret;) p n
+(    }) N
+(    modular ) S
+(operator) K
+(-=\() p
+(const) K
+( modular &b\) { ) p
+(return) K
+( *) p
+(this) K
+( = *) p
+(this) K
+( - b; }) p n
+(    modular ) S
+(operator) K
+(+=\() p
+(const) K
+( modular &b\) { ) p
+(return) K
+( *) p
+(this) K
+( = *) p
+(this) K
+( + b; }) p n
+(    modular ) S
+(operator) K
+(*=\() p
+(const) K
+( modular &b\) { ) p
+(return) K
+( *) p
+(this) K
+( = *) p
+(this) K
+( * b; }) p n
+(    ) S
+(bool) k
+( ) p
+(operator) K
+(==\() p
+(const) K
+( modular &b\) ) p
+(const) K
+( { ) p
+(return) K
+( x == b.x; }) p n
+(    uint_type val\(\) ) S
+(const) K
+( { ) p
+(return) K
+( x; }) p n
+(    ) S
+(friend) K
+( std::istream &) p
+(operator) K
+(>>\(std::istream &is, modular &rhs\) {) p n
+(        is >> rhs.x;) N
+(        rhs.x %= mod;) N
+(        ) S
+(return) K
+( is;) p n
+(    }) N
+(    ) S
+(friend) K
+( std::ostream &) p
+(operator) K
+(<<\(std::ostream &os, ) p
+(const) K
+( modular &rhs\) {) p n
+(        os << rhs.val\(\);) N
+(        ) S
+(return) K
+( os;) p n
+(    }) N
+(};) N
+(} ) S
+(// namespace maths) c
+(modular.hpp) (\351\241\265 1/1) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./math/modular.hpp) (18/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 19
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(using) K
+( uint = ) p
+(unsigned) k
+( ) p
+(int) k
+(;) p n
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(namespace) K
+( numbers {) p n
+(template) K
+( <) p
+(typename) k
+( T>) p n
+(T inf\(\) {) N
+(    assert\() S
+(false) k
+(\);) p n
+(}) N
+() N
+(template) K
+( <>) p n
+(int) k
+( inf<) p
+(int) k
+(>\(\) {) p n
+(    ) S
+(return) K
+( 0x3f3f3f3f;) p n
+(}) N
+() N
+(template) K
+( <>) p n
+(uint inf<uint>\(\) {) N
+(    ) S
+(return) K
+( 0x3f3f3f3f;) p n
+(}) N
+() N
+(template) K
+( <>) p n
+(ll inf<ll>\(\) {) N
+(    ) S
+(return) K
+( 0x3f3f3f3f3f3f3f3f;) p n
+(}) N
+() N
+(template) K
+( <>) p n
+(ull inf<ull>\(\) {) N
+(    ) S
+(return) K
+( 0x3f3f3f3f3f3f3f3f;) p n
+(}) N
+(} ) S
+(// namespace numbers) c
+(numbers.hpp) (\351\241\265 1/1) (2026-03-20 19:41) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./math/numbers.hpp) (19/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (1) 20
+%%BeginPageSetup
+/pagesave save def
+sh 0 translate 90 rotate
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 3.362408 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(#include) K
+( <string>) p n
+() N
+(using) K
+( ll = ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+(using) K
+( ull = ) p
+(unsigned) k
+( ) p
+(long) k
+( ) p
+(long) k
+(;) p n
+() N
+(namespace) K
+( maths {) p n
+(template) K
+( <) p
+(class) K
+( T>) p n
+(T quick_pow\(T a, ull b, T id = T\(\)\) {) N
+(    T ret = id;) N
+(    ) S
+(for) K
+( \(; b; b >>= 1, a = a * a\) {) p n
+(        ) S
+(if) K
+( \(b & 1\) {) p n
+(            ret = a * ret;) N
+(        }) N
+(    }) N
+(    ) S
+(return) K
+( ret;) p n
+(}) N
+() N
+(template) K
+( <) p
+(class) K
+( T>) p n
+(T quick_pow\(T a, ) S
+(const) K
+( std::string &s, T id = T\(\)\) {) p n
+(    T ret = id;) N
+(    ) S
+(for) K
+( \(size_t i = 0; i < s.size\(\); i++, a = a * a\) {) p n
+(        ) S
+(if) K
+( \(s[i] == ') p
+(1) str
+('\) {) p n
+(            ret = a * ret;) N
+(        }) N
+(    }) N
+(    ) S
+(return) K
+( ret;) p n
+(}) N
+() N
+(} ) S
+(// namespace maths) c
+(quick_pow.hpp) (\351\241\265 1/1) (2026-03-20 19:42) title
+border
+grestore
+(\347M-^T\261\346M-^IM-^S\345M-^M\260) rhead
+(./math/quick_pow.hpp) (20/20) (\346M-^XM-^_\346M-^\\M-^_\344\272M-^T \345M-^[M-^[\346M-^\\M-^H 10, 2026) footer
+end % of iso1dict
+pagesave restore
+showpage
+
+%%Trailer
+end
+%%EOF
