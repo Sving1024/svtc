@@ -1,12 +1,11 @@
 #include <vector>
-using namespace std;
 
 using ll = long long;
 using ull = unsigned long long;
 
 namespace data_structure {
 struct dsu {
-    vector<size_t> fa;
+    std::vector<size_t> fa;
     dsu() {}
     void push_back() { fa.push_back(fa.size()); }
     void resize(size_t sz) {
