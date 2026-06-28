@@ -23,6 +23,15 @@ struct custom_hash {
     }
 };
 
+template <>
+struct custom_hash<std::pair<uint, uint>> {
+    const custom_hash<ull> ull_hash = custom_hash<ull>();
+
+    size_t operator()(const std::pair<uint, uint> &p) {
+        return ull_hash((ull(p.first) << 32) | p.second);
+    }
+};
+
 template <class T, class V>
 using unordered_map = std::unordered_map<T, V, custom_hash<T>>;
 }; // namespace data_structure
