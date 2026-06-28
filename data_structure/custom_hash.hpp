@@ -5,7 +5,7 @@ using uint = unsigned int;
 using ll = long long;
 using ull = unsigned long long;
 
-struct data_structure {
+namespace data_structure {
     template <class T>
     struct custom_hash {
         static ull splitmix64(T x) {
