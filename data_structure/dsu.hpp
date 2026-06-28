@@ -1,12 +1,14 @@
+#include <numeric>
 #include <vector>
 
+using uint = unsigned int;
 using ll = long long;
 using ull = unsigned long long;
 
 namespace data_structure {
 struct dsu {
     std::vector<size_t> fa;
-    dsu() {}
+    dsu(uint n) : fa(n) { std::iota(fa.begin(), fa.end(), 0); }
     void push_back() { fa.push_back(fa.size()); }
     void resize(size_t sz) {
         while (fa.size() < sz) {
