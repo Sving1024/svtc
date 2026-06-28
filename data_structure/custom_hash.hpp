@@ -27,7 +27,7 @@ template <>
 struct custom_hash<std::pair<uint, uint>> {
     const custom_hash<ull> ull_hash = custom_hash<ull>();
 
-    size_t operator()(const std::pair<uint, uint> &p) {
+    size_t operator()(const std::pair<uint, uint> &p) const {
         return ull_hash((ull(p.first) << 32) | p.second);
     }
 };

@@ -13,4 +13,7 @@ struct discretize {
     size_t operator[](const T &x) {
         return lower_bound(vec.begin(), vec.end(), x, cmp()) - vec.begin();
     }
+    bool find(const T &x) {
+        return std::binary_search(vec.begin(), vec.end(), x);
+    }
 };
